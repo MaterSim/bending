@@ -104,11 +104,11 @@ def make_square_layers_molecular(
             # For a 1D chain: create angle i-1, i, i+1 at each interior atom
             for i in range(nx):  # atoms with both neighbors
                 center = idx[(k, i, j)]
-                if i == 0 or i == nx - 1:
-                    if 0 < k < nlayers - 1:
-                        add_angle(idx[(k-1, i, j)], center, idx[(k+1, i, j)], atype=2)
-                        print(f"Added vertical angle: {idx[(k-1, i, j)]} - {center} - {idx[(k+1, i, j)]}")
-                else:
+                if 1 < i < nx -1: #i == 0 or i == nx - 1:
+                #    if 0 < k < nlayers - 1:
+                #        add_angle(idx[(k-1, i, j)], center, idx[(k+1, i, j)], atype=2)
+                #        print(f"Added vertical angle: {idx[(k-1, i, j)]} - {center} - {idx[(k+1, i, j)]}")
+                #else:
                     left = idx[(k, i - 1, j)]
                     right = idx[(k, i + 1, j)]
                     add_angle(left, center, right, atype=1)
@@ -134,7 +134,7 @@ def make_square_layers_molecular(
         f.write(f"{n_angles} angles\n")
         f.write(f"{nlayers} atom types\n")
         f.write("2 bond types\n")
-        f.write("2 angle types\n\n")
+        f.write("1 angle types\n\n")
         f.write("1 dihedral types\n\n")
         f.write(f"{xlo:.6f} {xhi:.6f} xlo xhi\n")
         f.write(f"{ylo:.6f} {yhi:.6f} ylo yhi\n")

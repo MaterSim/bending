@@ -13,17 +13,15 @@ variable rcut   equal 20.0
 variable k1 equal 50.0 # strech mode
 variable k2 equal 1.0  # vertical bond 
 variable k3 equal 3.0
-variable ka equal 1.0   # vertical bond angle on the edge
 
 # ----------------------------
 # Bonded interactions
 # ----------------------------
 bond_style     morse
+angle_style    harmonic
 bond_coeff     1 ${k1} 1.0 3.0
 bond_coeff     2 ${k2} 2.0 5.0
-angle_style    harmonic
 angle_coeff    1 ${k3} 180.0
-angle_coeff    2 ${ka} 180.0
 # ----------------------------
 # Neighbor / timestep
 # ----------------------------
