@@ -58,6 +58,11 @@ def make_square_layers_molecular(
         bond_id += 1
         bonds.append((bond_id, btype, a1, a2))
 
+    # Add top/bot layer, 1-3 connection to prevent folding
+    add_bond(idx[(0, 0, 0)], idx[(0, 2, 0)], btype=2)
+    add_bond(idx[(0, nx-3, 0)], idx[(0, nx-1, 0)], btype=2)
+    add_bond(idx[(nlayers-1, 0, 0)], idx[(nlayers-1, 2, 0)], btype=2)
+    add_bond(idx[(nlayers-1, nx-3, 0)], idx[(nlayers-1, nx-1, 0)], btype=2)
     for k in range(nlayers):
         for j in range(ny):
             for i in range(nx):
@@ -180,7 +185,7 @@ if __name__ == "__main__":
         nlayers=nlayers,
         a=3.0,
         dz=5.0,
-        pad_x=10.0,
+        pad_x=30.0,
         pad_z=200.0,
         out_data=f"{nlayers}layer.data",
     )

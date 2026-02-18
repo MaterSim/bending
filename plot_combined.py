@@ -204,13 +204,13 @@ def main():
     fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(10, 8))
 
     # === Top panel: Energy ===
-    ax1.plot(step_log, smooth_data(toteng, window=2), label="TotEng", linewidth=1.5)
-    ax1.plot(step_log, smooth_data(poteng, window=2), label="PotEng", linewidth=1.5)
+    ax1.plot(step_log, smooth_data(toteng, window=1), label="TotEng", linewidth=1.5)
+    ax1.plot(step_log, smooth_data(poteng, window=1), label="PotEng", linewidth=1.5)
     ax1.set_ylabel("Energy (kcal/mol)")
     ax1.set_title("Energy Evolution")
 
     ax2 = ax1.twinx()
-    ax2.plot(step_log, smooth_data(zmin, window=2), color="tab:green", label="c_zmin", linewidth=1.5)
+    ax2.plot(step_log, smooth_data(zmin, window=1), color="tab:green", label="c_zmin", linewidth=1.5)
     ax2.set_ylabel("c_zmin (Å)", color="tab:green")
 
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -222,7 +222,7 @@ def main():
     for layer, means in sorted(means_by_layer.items()):
         atom_id = first_id_by_layer.get(layer, "?")
         #smoothed_means = smooth_data(means, window=3)
-        ax3.plot(steps_dump, means, label=f"layer {layer} (id {atom_id})", 
+        ax3.plot(steps_dump, means, label=f"layer {layer} (id {atom_id})",
                  linewidth=1.5, alpha=0.8)
 
     ax3.set_xlabel("Step")

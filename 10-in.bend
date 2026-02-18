@@ -11,8 +11,8 @@ variable s equal 4.8     # 4.5Å spacing, atoms near attractive minimum (not rep
 variable rcut   equal 20.0
 
 variable k1 equal 50.0 # strech mode
-variable k2 equal 1.0  # vertical bond 
-variable k3 equal 3.0
+variable k2 equal 10.0  # vertical bond 
+variable k3 equal 5.0
 
 # ----------------------------
 # Bonded interactions
