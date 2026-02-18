@@ -10,9 +10,9 @@ variable e equal 0.5     # interlayer - moderate adhesion for slip with cohesion
 variable s equal 4.8     # 4.5Å spacing, atoms near attractive minimum (not repulsive)
 variable rcut   equal 20.0
 
-variable k1 equal 50.0 # strech mode
-variable k2 equal 10.0  # vertical bond 
-variable k3 equal 5.0
+variable k1 equal 50.0 # inplane strech (Morse)
+variable k2 equal 10.0  # outplane strech (Morse)
+variable k3 equal 5.0  # inplane bending (harmonic)
 
 # ----------------------------
 # Bonded interactions
