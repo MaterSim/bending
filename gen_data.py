@@ -130,7 +130,7 @@ def make_square_layers_molecular(
     ylo = oy
     yhi = oy + ny * a + 20 # periodic along y
     zlo = oz - pad_z
-    zhi = oz + (nlayers - 1) * dz + 10 #pad_z
+    zhi = oz + (nlayers - 1) * dz + 30 #pad_z
 
     with open(out_data, "w") as f:
         f.write("LAMMPS data file: square layers (atom_style molecular)\n\n")
@@ -178,7 +178,7 @@ def make_square_layers_molecular(
 
 
 if __name__ == "__main__":
-    nlayers = 10
+    nlayers = 20
     make_square_layers_molecular(
         nx=150,
         ny=1,

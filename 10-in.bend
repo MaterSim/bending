@@ -10,9 +10,10 @@ variable e equal 0.5     # interlayer - moderate adhesion for slip with cohesion
 variable s equal 4.8     # 4.5Å spacing, atoms near attractive minimum (not repulsive)
 variable rcut   equal 20.0
 
-variable k1 equal 50.0 # inplane strech (Morse)
-variable k2 equal 10.0  # outplane strech (Morse)
-variable k3 equal 5.0  # inplane bending (harmonic)
+variable k1 equal 50.0    # inplane strech (Morse)
+variable k2 equal 0.5     # outplane strech (Morse)
+variable k3 equal 3.0     # inplane bending (harmonic)
+variable vdown equal 5e-7 # slower for better quasi-static behavior
 
 # ----------------------------
 # Bonded interactions
@@ -95,7 +96,6 @@ variable zsup  equal c_zmin-${Rind1}-${gap}
 variable ztop0 equal c_zmax+${Rind2}+${gap}
 
 # move down slowly enough to be stable, fast enough to see bending
-variable vdown equal 1e-6     # slower for better quasi-static behavior
 variable ztop  equal v_ztop0-v_vdown*step
 
 fix sup1 all indent ${Kind1} cylinder y ${xs1} ${zsup} ${Rind1} units box
@@ -113,4 +113,4 @@ thermo         10000
 thermo_style   custom step temp etotal pe ke c_zmin c_zmax v_ztop
 dump           d1 all custom 500000 bend-L${nlayers}-s${k1}-b${k3}-l${k2}.dump id type x y z
 dump_modify    d1 sort id
-run            250000000
+run            500000000
