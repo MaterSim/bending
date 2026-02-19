@@ -221,8 +221,8 @@ def main():
     # === Bottom panel: Neighbor distances ===
     for layer, means in sorted(means_by_layer.items()):
         atom_id = first_id_by_layer.get(layer, "?")
-        #smoothed_means = smooth_data(means, window=3)
-        ax3.plot(steps_dump, means, label=f"layer {layer} (id {atom_id})",
+        if layer <=3 or layer >= len(means_by_layer)-4:
+            ax3.plot(steps_dump, means, label=f"layer {layer} (id {atom_id})",
                  linewidth=1.5, alpha=0.8)
 
     ax3.set_xlabel("Step")

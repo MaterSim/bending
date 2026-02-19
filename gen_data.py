@@ -178,7 +178,7 @@ def make_square_layers_molecular(
 
 
 if __name__ == "__main__":
-    nlayers = 20
+    nlayers = 30
     make_square_layers_molecular(
         nx=150,
         ny=1,

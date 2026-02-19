@@ -14,6 +14,7 @@ variable k1 equal 50.0    # inplane strech (Morse)
 variable k2 equal 0.5     # outplane strech (Morse)
 variable k3 equal 3.0     # inplane bending (harmonic)
 variable vdown equal 5e-7 # slower for better quasi-static behavior
+variable dump_file string "bend-L${nlayers}-s${k1}-b${k3}-l${k2}.dump"
 
 # ----------------------------
 # Bonded interactions
@@ -111,6 +112,6 @@ reset_timestep 0
 fix top  all indent ${Kind2} cylinder y ${xtop} v_ztop  ${Rind2} units box
 thermo         10000
 thermo_style   custom step temp etotal pe ke c_zmin c_zmax v_ztop
-dump           d1 all custom 500000 bend-L${nlayers}-s${k1}-b${k3}-l${k2}.dump id type x y z
+dump           d1 all custom 500000 ${dump_file} id type x y z
 dump_modify    d1 sort id
 run            500000000
