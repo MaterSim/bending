@@ -9,27 +9,30 @@ LMP_EXE="mpirun -np 16 /users/qzhu8/GitHub/lammps-stable_23Jun2022_update3/src/l
 # Parameter grids
 layers=(10 20 30)
 k1s=(50 100)
-k2s=(0.1 1 5 10)
+k2s=(0.1 1 10)
 k3s=(3)
+v=(1e-7 2e-7)
 
 for layer in "${layers[@]}"; do
   for k1 in "${k1s[@]}"; do
     for k2 in "${k2s[@]}"; do
       for k3 in "${k3s[@]}"; do
-        job_name="L${layer}-s${k1}-b${k3}-l${k2}"
-        job_dir="${BASE_DIR}/jobs/${job_name}"
-        dump_file="bend-L${layer}-s${k1}-b${k3}-l${k2}.dump"
+        for v in "${v[@]}"; do
+            job_name="L${layer}-s${k1}-b${k3}-l${k2}-v${v}"
+            job_dir="${BASE_DIR}/jobs-5paras/${job_name}"
+            dump_file="bend-L${layer}-s${k1}-b${k3}-l${k2}-v${v}.dump"
 
-        mkdir -p "$job_dir"
-        cp "${BASE_DIR}/${layer}layer.data" "$job_dir/"
-        cp "${BASE_DIR}/in.bend" "$job_dir/in.bend"
+            mkdir -p "$job_dir"
+            cp "${BASE_DIR}/${layer}layer.data" "$job_dir/"
+            cp "${BASE_DIR}/in.bend" "$job_dir/in.bend"
 
-        sed -i "s/variable nlayers equal .*/variable nlayers equal ${layer}/" "$job_dir/in.bend"
-        sed -i "s/variable k1 equal .*/variable k1 equal ${k1}    # inplane strech (Morse)/" "$job_dir/in.bend"
-        sed -i "s/variable k2 equal .*/variable k2 equal ${k2}    # out-of-plane stretch (Morse)/" "$job_dir/in.bend"
-        sed -i "s/variable k3 equal .*/variable k3 equal ${k3}    # bending (Morse)/" "$job_dir/in.bend"
+            sed -i "s/variable nlayers equal .*/variable nlayers equal ${layer}/" "$job_dir/in.bend"
+            sed -i "s/variable k1 equal .*/variable k1 equal ${k1}    # inplane strech (Morse)/" "$job_dir/in.bend"
+            sed -i "s/variable k2 equal .*/variable k2 equal ${k2}    # out-of-plane stretch (Morse)/" "$job_dir/in.bend"
+            sed -i "s/variable k3 equal .*/variable k3 equal ${k3}    # bending (Morse)/" "$job_dir/in.bend"
+            sed -i "s/variable vdown equal .*/variable vdown equal ${v}   # slower for better quasi-static behavior/" "$job_dir/in.bend"
 
-        cat > "${job_dir}/run.sbatch" <<EOF
+            cat > "${job_dir}/run.sbatch" <<EOF
 #!/bin/bash
 #SBATCH -J ${job_name}
 #SBATCH --nodes=1
@@ -51,7 +54,8 @@ python "${BASE_DIR}/plot_combined.py" -d "${dump_file}"
 mv combined_plot.png "bend-${job_name}.png"
 EOF
 
-        sbatch "${job_dir}/run.sbatch"
+            sbatch "${job_dir}/run.sbatch"
+        done
       done
     done
   done

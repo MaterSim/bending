@@ -78,10 +78,14 @@ def make_square_layers_molecular(
                     if i > 2: add_bond(a0, idx[(k+1, i-2, j)], btype=2)
                     if i > 3: add_bond(a0, idx[(k+1, i-3, j)], btype=2)
                     if i > 4: add_bond(a0, idx[(k+1, i-4, j)], btype=2)
+                    if i > 5: add_bond(a0, idx[(k+1, i-5, j)], btype=2)
+                    #if i > 6: add_bond(a0, idx[(k+1, i-6, j)], btype=2)
                     if i + 1 < nx: add_bond(a0, idx[(k+1, i+1, j)], btype=2)
                     if i + 2 < nx: add_bond(a0, idx[(k+1, i+2, j)], btype=2)
                     if i + 3 < nx: add_bond(a0, idx[(k+1, i+3, j)], btype=2)
                     if i + 4 < nx: add_bond(a0, idx[(k+1, i+4, j)], btype=2)
+                    if i + 5 < nx: add_bond(a0, idx[(k+1, i+5, j)], btype=2)
+                    #if i + 6 < nx: add_bond(a0, idx[(k+1, i+6, j)], btype=2)
                 # Bond to y-neighbor only if j < ny-1 or j == ny-1 and ny > 1
                 # To avoid double-counting with periodic y, only bond j -> j+1 (wrapping)
                 if ny == 1:
@@ -178,15 +182,15 @@ def make_square_layers_molecular(
 
 
 if __name__ == "__main__":
-    nlayers = 30
-    make_square_layers_molecular(
-        nx=150,
-        ny=1,
-        nlayers=nlayers,
-        a=3.0,
-        dz=5.0,
-        pad_x=30.0,
-        pad_z=200.0,
-        out_data=f"{nlayers}layer.data",
-    )
+    for nlayers in [10, 20, 30]:
+        make_square_layers_molecular(
+            nx=150,
+            ny=1,
+            nlayers=nlayers,
+            a=3.0,
+            dz=5.0,
+            pad_x=30.0,
+            pad_z=200.0,
+            out_data=f"{nlayers}layer.data",
+        )
 

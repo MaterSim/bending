@@ -8,12 +8,12 @@ read_data      ${nlayers}layer.data
 
 variable e equal 0.5     # interlayer - moderate adhesion for slip with cohesion
 variable s equal 4.8     # 4.5Å spacing, atoms near attractive minimum (not repulsive)
-variable rcut   equal 20.0
+variable rcut   equal 30.0
 
 variable k1 equal 50.0    # inplane strech (Morse)
 variable k2 equal 0.5     # outplane strech (Morse)
 variable k3 equal 3.0     # inplane bending (harmonic)
-variable vdown equal 5e-7 # slower for better quasi-static behavior
+variable vdown equal 1e-7 # slower for better quasi-static behavior
 variable dump_file string "bend-L${nlayers}-s${k1}-b${k3}-l${k2}.dump"
 
 # ----------------------------
@@ -110,8 +110,8 @@ velocity all zero linear
 velocity all set NULL 0.0 NULL
 reset_timestep 0
 fix top  all indent ${Kind2} cylinder y ${xtop} v_ztop  ${Rind2} units box
-thermo         10000
+thermo         100000
 thermo_style   custom step temp etotal pe ke c_zmin c_zmax v_ztop
-dump           d1 all custom 500000 ${dump_file} id type x y z
+dump           d1 all custom 1000000 ${dump_file} id type x y z
 dump_modify    d1 sort id
-run            500000000
+run            2000000000
