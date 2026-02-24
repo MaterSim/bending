@@ -11,9 +11,13 @@ import sys
 import re
 import argparse
 from pathlib import Path
+import tempfile
+import os
+import subprocess
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import image as mpimg
 
 
 def smooth_data(data, window=5):
@@ -33,7 +37,7 @@ def parse_log(path: Path):
 
     header_re = re.compile(r"\bStep\b.*\bTotEng\b.*\bPotEng\b")
 
-    with path.open() as f:
+    with path.open(encoding='utf-8', errors='ignore') as f:
         in_block = False
         col_idx = {}
         for line in f:
@@ -73,7 +77,7 @@ def parse_log(path: Path):
 
 def parse_dump(path: Path):
     """Parse dump file for neighbor distances."""
-    with path.open() as f:
+    with path.open(encoding='utf-8', errors='ignore') as f:
         while True:
             line = f.readline()
             if not line:
@@ -176,6 +180,72 @@ def compute_neighbor_distances(dump_path):
     return steps, means_by_layer, first_id_by_layer
 
 
+def render_last_frame(dump_path, output_path, width=1600, height=800):
+    """Render the last frame from dump file using external render script."""
+    print(f"Rendering last frame from {dump_path}...")
+    
+    # Find render_frames.py script
+    script_dir = Path(__file__).parent
+    render_script = script_dir / "render_frames.py"
+    
+    if not render_script.exists():
+        print(f"Warning: render_frames.py not found at {render_script}")
+        # Create a placeholder image
+        fig, ax = plt.subplots(figsize=(width/100, height/100), dpi=100)
+        ax.text(0.5, 0.5, "render_frames.py not found", 
+                ha='center', va='center', fontsize=12)
+        ax.axis('off')
+        fig.savefig(output_path, bbox_inches='tight')
+        plt.close(fig)
+        return output_path
+    
+    try:
+        # Create temp directory for frame output
+        temp_dir = tempfile.mkdtemp()
+        
+        # Render with a reasonable step to ensure we get the last frame
+        # Use step=100 to render a few frames including the last one
+        result = subprocess.run(
+            [sys.executable, str(render_script), str(dump_path), temp_dir, 
+             str(width), str(height), "100"],  # Render every 100th frame
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        if result.returncode != 0:
+            raise Exception(f"render_frames.py failed: {result.stderr}")
+        
+        # Find all rendered frames and use the last one
+        frame_files = sorted(Path(temp_dir).glob("frame_*.png"))
+        if not frame_files:
+            raise Exception("No frames were rendered")
+        
+        # Use the last frame (which should be the last frame of the simulation)
+        last_frame_path = frame_files[-1]
+        
+        # Copy to output path
+        import shutil
+        shutil.copy(last_frame_path, output_path)
+        
+        # Cleanup temp directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        
+        print(f"Last frame rendered to {output_path}")
+        return output_path
+        
+    except Exception as e:
+        print(f"Warning: Could not render frame: {e}")
+        # Create a placeholder image
+        fig, ax = plt.subplots(figsize=(width/100, height/100), dpi=100)
+        ax.text(0.5, 0.5, f"Frame rendering failed\n{str(e)[:50]}", 
+                ha='center', va='center', fontsize=10, wrap=True)
+        ax.axis('off')
+        fig.savefig(output_path, bbox_inches='tight')
+        plt.close(fig)
+        return output_path
+
+
 def main():
     parser = argparse.ArgumentParser(description="Plot combined energy and neighbor distances")
     parser.add_argument("--dump", "-d", required=True, help="LAMMPS dump file path")
@@ -200,8 +270,14 @@ def main():
     if not steps_dump:
         raise SystemExit("No dump data found.")
 
-    # Create figure with subplots
-    fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(10, 8))
+    # Render last frame to temporary file
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+        frame_img_path = tmp.name
+    render_last_frame(dump_path, frame_img_path, width=1280, height=800)
+    
+    # Create figure with 3x1 subplots with height ratios 1:1:1.8
+    fig, (ax1, ax3, ax5) = plt.subplots(3, 1, figsize=(8, 8), 
+                                        gridspec_kw={'height_ratios': [1, 1, 1.2]})
 
     # === Top panel: Energy ===
     ax1.plot(step_log, smooth_data(toteng, window=1), label="TotEng", linewidth=1.5)
@@ -215,7 +291,7 @@ def main():
 
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc="best")
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc=2)
     ax1.grid(True, alpha=0.3)
 
     # === Bottom panel: Neighbor distances ===
@@ -228,16 +304,30 @@ def main():
     ax3.set_xlabel("Step")
     ax3.set_ylabel("Mean distance (Å)")
     ax3.set_title("Mean Neighbor Distance per Layer")
-    ax3.legend(loc="best")
+    ax3.legend(loc=2)
     ax3.grid(True, alpha=0.3)
     ax3.set_title(f"{args.dump}-distance")
     ax3.set_ylim(2.5, 4.5)
     ax4 = ax3.twinx()
     ax4.plot(step_log, smooth_data(zmin, window=1), color="tab:green", label="c_zmin", linewidth=1.5)
     ax4.set_ylabel("c_zmin (Å)", color="tab:green")
+    
+    # === Bottom panel: Last frame visualization ===
+    img = mpimg.imread(frame_img_path)
+    ax5.imshow(img, aspect='auto')
+    ax5.axis('off')
+    ax5.set_title(f"Last Frame from {dump_path.name}")
+    ax5.margins(0)
+    
     fig.tight_layout()
     fig.savefig("combined_plot.png", dpi=200)
     print("Saved combined_plot.png")
+    
+    # Clean up temporary file
+    try:
+        os.unlink(frame_img_path)
+    except:
+        pass
 
 
 if __name__ == "__main__":
