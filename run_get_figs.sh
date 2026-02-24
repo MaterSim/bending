@@ -7,8 +7,13 @@ FIG_ROOT="${BASE_DIR}/Figs"
 
 mkdir -p "$LOG_DIR" "$FIG_ROOT"
 
-# Activate Python environment if available
-if command -v conda >/dev/null 2>&1; then
+# Activate Python environment (conda htocsp) for cron
+CONDA_SH="/users/qzhu8/miniconda3/etc/profile.d/conda.sh"
+if [ -f "$CONDA_SH" ]; then
+  # shellcheck disable=SC1091
+  source "$CONDA_SH"
+  conda activate htocsp || true
+elif command -v conda >/dev/null 2>&1; then
   # shellcheck disable=SC1091
   source "$(conda info --base)/etc/profile.d/conda.sh"
   conda activate htocsp || true

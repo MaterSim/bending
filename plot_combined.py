@@ -34,13 +34,21 @@ def parse_log(path: Path):
     toteng = []
     poteng = []
     zmin = []
+    timestep = None  # Will try to extract from log
 
     header_re = re.compile(r"\bStep\b.*\bTotEng\b.*\bPotEng\b")
+    timestep_re = re.compile(r"timestep\s+([\d.e+-]+)", re.IGNORECASE)
 
     with path.open(encoding='utf-8', errors='ignore') as f:
         in_block = False
         col_idx = {}
         for line in f:
+            # Try to extract timestep from log
+            if timestep is None:
+                ts_match = timestep_re.search(line)
+                if ts_match:
+                    timestep = float(ts_match.group(1))
+            
             line = line.strip()
             if not line:
                 in_block = False
@@ -72,7 +80,7 @@ def parse_log(path: Path):
                 poteng.append(pe)
                 zmin.append(zm)
 
-    return step, toteng, poteng, zmin
+    return step, toteng, poteng, zmin, timestep
 
 
 def parse_dump(path: Path):
@@ -250,6 +258,7 @@ def main():
     parser = argparse.ArgumentParser(description="Plot combined energy and neighbor distances")
     parser.add_argument("--dump", "-d", required=True, help="LAMMPS dump file path")
     parser.add_argument("--log", "-l", default="log.lammps", help="LAMMPS log file (default: log.lammps)")
+    parser.add_argument("--timestep", "-ts", type=float, default=None, help="LAMMPS timestep in fs (optional, auto-detected from log if available)")
 
     args = parser.parse_args()
 
@@ -262,13 +271,23 @@ def main():
         raise SystemExit(f"Log file not found: {log_path}")
 
     # Parse both data sources
-    step_log, toteng, poteng, zmin = parse_log(log_path)
+    step_log, toteng, poteng, zmin, ts_from_log = parse_log(log_path)
+    
+    # Use provided timestep or auto-detected one, default to 1.0 fs
+    timestep = args.timestep or ts_from_log or 1.0
+    
+    # Convert steps to time in nanoseconds
+    time_log = np.array(step_log) * timestep / 1000000.0
+    
     steps_dump, means_by_layer, first_id_by_layer = compute_neighbor_distances(dump_path)
 
     if not step_log:
         raise SystemExit("No thermo data found (Step/TotEng/PotEng).")
     if not steps_dump:
         raise SystemExit("No dump data found.")
+    
+    # Convert dump steps to time in nanoseconds
+    time_dump = np.array(steps_dump) * timestep / 1000000.0
 
     # Render last frame to temporary file
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
@@ -280,13 +299,14 @@ def main():
                                         gridspec_kw={'height_ratios': [1, 1, 1.2]})
 
     # === Top panel: Energy ===
-    ax1.plot(step_log, smooth_data(toteng, window=1), label="TotEng", linewidth=1.5)
-    ax1.plot(step_log, smooth_data(poteng, window=1), label="PotEng", linewidth=1.5)
+    ax1.plot(time_log, smooth_data(toteng, window=1), label="TotEng", linewidth=1.5)
+    ax1.plot(time_log, smooth_data(poteng, window=1), label="PotEng", linewidth=1.5)
     ax1.set_ylabel("Energy (kcal/mol)")
     ax1.set_title("Energy Evolution")
+    ax1.set_xlabel("Time (ns)")
 
     ax2 = ax1.twinx()
-    ax2.plot(step_log, smooth_data(zmin, window=1), color="tab:green", label="c_zmin", linewidth=1.5)
+    ax2.plot(time_log, smooth_data(zmin, window=1), color="tab:green", label="c_zmin", linewidth=1.5)
     ax2.set_ylabel("c_zmin (Å)", color="tab:green")
 
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -298,10 +318,10 @@ def main():
     for layer, means in sorted(means_by_layer.items()):
         atom_id = first_id_by_layer.get(layer, "?")
         if layer <=3 or layer >= len(means_by_layer)-4:
-            ax3.plot(steps_dump, means, label=f"layer {layer} (id {atom_id})",
+            ax3.plot(time_dump, means, label=f"layer {layer} (id {atom_id})",
                  linewidth=1.5, alpha=0.8)
 
-    ax3.set_xlabel("Step")
+    ax3.set_xlabel("Time (ns)")
     ax3.set_ylabel("Mean distance (Å)")
     ax3.set_title("Mean Neighbor Distance per Layer")
     ax3.legend(loc=2)
@@ -309,7 +329,7 @@ def main():
     ax3.set_title(f"{args.dump}-distance")
     ax3.set_ylim(2.5, 4.5)
     ax4 = ax3.twinx()
-    ax4.plot(step_log, smooth_data(zmin, window=1), color="tab:green", label="c_zmin", linewidth=1.5)
+    ax4.plot(time_log, smooth_data(zmin, window=1), color="tab:green", label="c_zmin", linewidth=1.5)
     ax4.set_ylabel("c_zmin (Å)", color="tab:green")
     
     # === Bottom panel: Last frame visualization ===
