@@ -7,13 +7,18 @@ Usage:
 Outputs: combined_plot.png
 """
 
-import sys
+import warnings
+warnings.filterwarnings('ignore', message='.*OVITO.*PyPI')
+
 import re
 import argparse
 from pathlib import Path
 import tempfile
 import os
-import subprocess
+
+# Set matplotlib to non-interactive backend before importing pyplot
+import matplotlib
+matplotlib.use('Agg')
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -188,59 +193,93 @@ def compute_neighbor_distances(dump_path):
     return steps, means_by_layer, first_id_by_layer
 
 
+def get_indentation_depth(dump_path):
+    """Calculate indentation depth from first layer in last frame."""
+    # Parse dump to get last frame
+    last_atoms = None
+    for _, atoms in parse_dump(dump_path):
+        last_atoms = atoms
+    
+    if not last_atoms:
+        return None
+    
+    # Find first layer (type 1) atoms
+    first_layer_z = []
+    for aid, (atype, x, y, z) in last_atoms.items():
+        if atype == 1:
+            first_layer_z.append(z)
+    
+    if not first_layer_z:
+        return None
+    
+    z_min = min(first_layer_z)
+    z_max = max(first_layer_z)
+    depth = z_max - z_min
+    
+    return depth, z_min, z_max
+
+
 def render_last_frame(dump_path, output_path, width=1600, height=800):
-    """Render the last frame from dump file using external render script."""
+    """Render only the last frame from dump file using OVITO and return indentation depth."""
     print(f"Rendering last frame from {dump_path}...")
     
-    # Find render_frames.py script
-    script_dir = Path(__file__).parent
-    render_script = script_dir / "render_frames.py"
-    
-    if not render_script.exists():
-        print(f"Warning: render_frames.py not found at {render_script}")
+    try:
+        # Set Qt to offscreen mode before importing OVITO to avoid QWidget errors
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        
+        from ovito.io import import_file
+        from ovito.vis import Viewport, OSPRayRenderer
+        
+        # Import the dump file
+        pipeline = import_file(str(dump_path))
+        
+        # Get the last frame index
+        num_frames = pipeline.source.num_frames
+        last_frame_idx = num_frames - 1
+        
+        print(f"  Total frames: {num_frames}, rendering frame {last_frame_idx}")
+        
+        # Set up viewport for rendering - Left view (XZ plane)
+        vp = Viewport()
+        vp.type = Viewport.Type.Ortho
+        vp.camera_pos = (0, 100, 0)
+        vp.camera_dir = (0, -1, 0)
+        vp.fov = 60.0
+        
+        # Add pipeline to scene and zoom to fit
+        pipeline.add_to_scene()
+        vp.zoom_all()
+        
+        # Use OSPRay renderer (headless, no Qt needed)
+        renderer = OSPRayRenderer()
+        
+        # Render only the last frame
+        vp.render_image(
+            filename=str(output_path),
+            size=(width, height),
+            frame=last_frame_idx,
+            renderer=renderer,
+            background=(1, 1, 1),
+            alpha=False
+        )
+        
+        print(f"  Last frame (index {last_frame_idx}) rendered to {output_path}")
+        
+        # Calculate indentation depth
+        depth_info = get_indentation_depth(dump_path)
+        
+        return output_path, depth_info
+        
+    except ImportError:
+        print(f"Warning: OVITO not available, cannot render frame")
         # Create a placeholder image
         fig, ax = plt.subplots(figsize=(width/100, height/100), dpi=100)
-        ax.text(0.5, 0.5, "render_frames.py not found", 
+        ax.text(0.5, 0.5, "OVITO not available", 
                 ha='center', va='center', fontsize=12)
         ax.axis('off')
         fig.savefig(output_path, bbox_inches='tight')
         plt.close(fig)
-        return output_path
-    
-    try:
-        # Create temp directory for frame output
-        temp_dir = tempfile.mkdtemp()
-        
-        # Render with a reasonable step to ensure we get the last frame
-        # Use step=100 to render a few frames including the last one
-        result = subprocess.run(
-            [sys.executable, str(render_script), str(dump_path), temp_dir, 
-             str(width), str(height), "100"],  # Render every 100th frame
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        
-        if result.returncode != 0:
-            raise Exception(f"render_frames.py failed: {result.stderr}")
-        
-        # Find all rendered frames and use the last one
-        frame_files = sorted(Path(temp_dir).glob("frame_*.png"))
-        if not frame_files:
-            raise Exception("No frames were rendered")
-        
-        # Use the last frame (which should be the last frame of the simulation)
-        last_frame_path = frame_files[-1]
-        
-        # Copy to output path
-        import shutil
-        shutil.copy(last_frame_path, output_path)
-        
-        # Cleanup temp directory
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        
-        print(f"Last frame rendered to {output_path}")
-        return output_path
+        return output_path, None
         
     except Exception as e:
         print(f"Warning: Could not render frame: {e}")
@@ -251,7 +290,7 @@ def render_last_frame(dump_path, output_path, width=1600, height=800):
         ax.axis('off')
         fig.savefig(output_path, bbox_inches='tight')
         plt.close(fig)
-        return output_path
+        return output_path, None
 
 
 def main():
@@ -292,7 +331,7 @@ def main():
     # Render last frame to temporary file
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         frame_img_path = tmp.name
-    render_last_frame(dump_path, frame_img_path, width=1280, height=800)
+    frame_img_path, depth_info = render_last_frame(dump_path, frame_img_path, width=1280, height=800)
     
     # Create figure with 3x1 subplots with height ratios 1:1:1.8
     fig, (ax1, ax3, ax5) = plt.subplots(3, 1, figsize=(8, 8), 
@@ -336,7 +375,14 @@ def main():
     img = mpimg.imread(frame_img_path)
     ax5.imshow(img, aspect='auto')
     ax5.axis('off')
-    ax5.set_title(f"Last Frame from {dump_path.name}")
+    
+    # Add depth information to title if available
+    if depth_info:
+        depth, z_min, z_max = depth_info
+        ax5.set_title(f"Last Frame from {dump_path.name}\nIndentation Depth: {depth:.3f} Å (z_min={z_min:.2f}, z_max={z_max:.2f})")
+    else:
+        ax5.set_title(f"Last Frame from {dump_path.name}")
+    
     ax5.margins(0)
     
     fig.tight_layout()
